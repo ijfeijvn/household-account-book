@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>욕망 저금통</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Noto+Sans+KR:wght@400;500;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <aside class="story-panel" aria-label="앱 무드보드">
+        <div class="story-copy">
+          <span class="overline">욕망을 소망으로</span>
+          <h1>오늘 참은 마음이 내일의 꿈이 되도록.</h1>
+          <p>내 돈은 내 계좌에 그대로, 욕망 저금통은 선택의 기억과 성취를 모아줍니다.</p>
+        </div>
+        <img class="story-image" src="./assets/dream-jar.png" alt="빛나는 저금통 일러스트" />
+      </aside>
+
+      <section class="phone" aria-label="욕망 저금통 앱">
+        <header class="topbar">
+          <button class="icon-button" type="button" aria-label="메뉴">
+            <i data-lucide="sparkles"></i>
+          </button>
+          <div>
+            <p>욕망 저금통</p>
+            <strong>소망 홈</strong>
+          </div>
+          <button class="icon-button" type="button" aria-label="알림">
+            <i data-lucide="bell"></i>
+          </button>
+        </header>
+
+        <nav class="tabs" aria-label="화면 전환">
+          <button class="tab active" type="button" data-view="home">홈</button>
+          <button class="tab" type="button" data-view="projects">프로젝트</button>
+          <button class="tab" type="button" data-view="community">커뮤니티</button>
+        </nav>
+
+        <div class="view active" id="home" data-view-panel="home">
+          <section class="hero-panel">
+            <div class="hero-text">
+              <span>이번 달 참은 욕망</span>
+              <strong id="month-total">0원</strong>
+              <p id="month-message">작은 선택들이 조용히 자라고 있어요.</p>
+            </div>
+            <div class="hero-jar">
+              <img src="./assets/dream-jar.png" alt="" />
+            </div>
+          </section>
+
+          <section class="form-panel" aria-labelledby="record-title">
+            <div class="section-heading">
+              <div>
+                <span>새 기록</span>
+                <h2 id="record-title">오늘 참은 욕망</h2>
+              </div>
+              <button class="icon-button soft" type="button" id="reset-demo" aria-label="처음 상태로 되돌리기">
+                <i data-lucide="rotate-ccw"></i>
+              </button>
+            </div>
+
+            <form id="saving-form">
+              <label>
+                <span>욕망</span>
+                <input id="desire" name="desire" type="text" placeholder="예: 치킨, 택시, 충동구매" required />
+              </label>
+              <div class="field-grid">
+                <label>
+                  <span>아낀 금액</span>
+                  <input id="amount" name="amount" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="20000" required />
+                </label>
+                <label>
+                  <span>기부</span>
+                  <input id="donation" name="donation" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="2000" />
+                </label>
+              </div>
+              <label>
+                <span>프로젝트</span>
+                <select id="project" name="project"></select>
+              </label>
+              <div class="mood-row" role="group" aria-label="기분 선택">
+                <input type="radio" name="mood" id="mood-proud" value="뿌듯함" checked />
+                <label for="mood-proud">뿌듯함</label>
+                <input type="radio" name="mood" id="mood-calm" value="차분함" />
+                <label for="mood-calm">차분함</label>
+                <input type="radio" name="mood" id="mood-wobbly" value="흔들렸음" />
+                <label for="mood-wobbly">흔들렸음</label>
+              </div>
+              <button class="primary-button" type="submit">
+                <i data-lucide="plus"></i>
+                기록하기
+              </button>
+            </form>
+          </section>
+
+          <section class="timeline-panel" aria-labelledby="timeline-title">
+            <div class="section-heading">
+              <div>
+                <span>타임라인</span>
+                <h2 id="timeline-title">욕망이 바뀐 순간들</h2>
+              </div>
+            </div>
+            <div class="timeline" id="timeline"></div>
+          </section>
+        </div>
+
+        <div class="view" id="projects" data-view-panel="projects">
+          <section class="section-heading page-heading">
+            <div>
+              <span>나의 소망</span>
+              <h2>프로젝트 저금통</h2>
+            </div>
+            <button class="icon-button soft" type="button" id="add-project" aria-label="프로젝트 추가">
+              <i data-lucide="folder-plus"></i>
+            </button>
+          </section>
+          <div class="project-list" id="project-list"></div>
+          <section class="donation-panel">
+            <div>
+              <span>함께 만드는 선의</span>
+              <h2>5월 공동 기부 프로젝트</h2>
+              <p>청년 마음돌봄 상담 지원</p>
+            </div>
+            <strong id="donation-total">0원</strong>
+            <div class="progress-track">
+              <span id="donation-progress"></span>
+            </div>
+          </section>
+        </div>
+
+        <div class="view" id="community" data-view-panel="community">
+          <section class="community-compose">
+            <div class="section-heading">
+              <div>
+                <span>작은 승리</span>
+                <h2>따뜻한 커뮤니티</h2>
+              </div>
+            </div>
+            <form id="community-form">
+              <label>
+                <span>공유할 절제 기록</span>
+                <select id="community-record" required></select>
+              </label>
+              <label>
+                <span>짧은 생각</span>
+                <textarea id="community-text" rows="3" placeholder="오늘 이 욕망을 참으며 들었던 생각" required></textarea>
+              </label>
+              <button class="primary-button secondary" type="submit">
+                <i data-lucide="send"></i>
+                공유하기
+              </button>
+            </form>
+          </section>
+          <section class="community-feed" id="community-feed" aria-label="커뮤니티 피드"></section>
+        </div>
+      </section>
+    </main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script src="./assets/lucide.min.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
