@@ -1,0 +1,9 @@
+.android-build/
+node_modules/
+*.log
+*.idsig
+.codex-apk-*.pem
+.codex-apk-tools*/
+.codex-android-build/
+.codex-android-tools/
+dist/*-unsigned.apk
