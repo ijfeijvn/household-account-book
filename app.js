@@ -59,6 +59,17 @@ const availableCategoryIcons = [
   "dumbbell",
 ];
 
+const headerMessages = [
+  "오늘도 가볍게",
+  "욕망은 기록으로",
+  "천천히 모으기",
+  "작은 절제부터",
+  "소망 쪽으로",
+  "차분히 쓰기",
+  "나를 위한 선택",
+];
+const headerMessage = headerMessages[Math.floor(Math.random() * headerMessages.length)];
+
 const currency = new Intl.NumberFormat("ko-KR", {
   style: "currency",
   currency: "KRW",
@@ -75,22 +86,34 @@ calendarCursor.setDate(1);
 let reportCursor = new Date();
 reportCursor.setDate(1);
 let selectedCalendarDate = dateKey();
+let selectedReportDate = "";
 let reportType = "expense";
 let settingsType = "expense";
 let selectedCategoryIcon = availableCategoryIcons[0];
 let editingCategoryIconIndex = -1;
+let activeSettingsMenu = "customize";
+let categoryDrag = {
+  index: -1,
+  overIndex: -1,
+  pointerId: null,
+  armed: false,
+};
 
 const els = {
   tabs: document.querySelectorAll(".bottom-tab"),
   views: document.querySelectorAll(".view"),
+  monthSummary: document.querySelector(".month-summary"),
   summaryCards: document.querySelectorAll("[data-summary-type]"),
   headerMonth: document.querySelector("#header-month"),
   summaryExpense: document.querySelector("#summary-expense"),
   summaryIncome: document.querySelector("#summary-income"),
   summaryDesire: document.querySelector("#summary-desire"),
+  headerSettings: document.querySelector("#header-settings"),
   ledgerTypeButtons: document.querySelectorAll("[data-ledger-type]"),
   ledgerForm: document.querySelector("#ledger-form"),
   ledgerDate: document.querySelector("#ledger-date"),
+  ledgerDateDisplay: document.querySelector("#ledger-date-display"),
+  ledgerDatePopover: document.querySelector("#ledger-date-popover"),
   ledgerCategory: document.querySelector("#ledger-category"),
   ledgerCategoryPicker: document.querySelector("#ledger-category-picker"),
   ledgerList: document.querySelector("#ledger-list"),
@@ -101,12 +124,12 @@ const els = {
   calendarDayDetail: document.querySelector("#calendar-day-detail"),
   reportExpense: document.querySelector("#report-expense"),
   reportIncome: document.querySelector("#report-income"),
-  reportBalance: document.querySelector("#report-balance"),
   reportDesire: document.querySelector("#report-desire"),
   categoryReport: document.querySelector("#category-report"),
+  reportDayList: document.querySelector("#report-day-list"),
+  reportDayDetail: document.querySelector("#report-day-detail"),
   reportTypeButtons: document.querySelectorAll("[data-report-type]"),
-  reportListTitle: document.querySelector("#report-list-title"),
-  reportTransactionList: document.querySelector("#report-transaction-list"),
+  goViewButtons: document.querySelectorAll("[data-go-view]"),
   reportYear: document.querySelector("#report-year"),
   reportMonth: document.querySelector("#report-month"),
   projectList: document.querySelector("#project-list"),
@@ -123,6 +146,8 @@ const els = {
   settingsIconPicker: document.querySelector("#settings-icon-picker"),
   settingsListTitle: document.querySelector("#settings-list-title"),
   settingsCategoryList: document.querySelector("#settings-category-list"),
+  settingsMenuCards: document.querySelectorAll("[data-settings-menu]"),
+  settingsCustomizePanel: document.querySelector("#settings-customize-panel"),
   recordModal: document.querySelector("#record-modal"),
   recordModalBody: document.querySelector("#record-modal-body"),
   closeRecordDetail: document.querySelector("#close-record-detail"),
@@ -219,6 +244,15 @@ function formatShortDate(key) {
   }).format(parseDateKey(key));
 }
 
+function formatFullDate(key) {
+  return new Intl.DateTimeFormat("ko-KR", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    weekday: "short",
+  }).format(parseDateKey(key));
+}
+
 function formatMonth(date) {
   return new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "long" }).format(date);
 }
@@ -249,6 +283,19 @@ function getMonthlyData(monthKey = thisMonthKey()) {
   const income = transactions.filter((item) => item.type === "income").reduce((sum, item) => sum + item.amount, 0);
   const desire = desireRecords.reduce((sum, item) => sum + item.amount, 0);
   return { transactions, desireRecords, expense, income, desire };
+}
+
+function getTransactionsForDate(key) {
+  return state.transactions
+    .filter((item) => item.dateKey === key)
+    .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+}
+
+function getTransactionTotals(items) {
+  return {
+    expense: items.filter((item) => item.type === "expense").reduce((sum, item) => sum + item.amount, 0),
+    income: items.filter((item) => item.type === "income").reduce((sum, item) => sum + item.amount, 0),
+  };
 }
 
 function render() {
@@ -286,6 +333,10 @@ function renderLedgerType() {
 function renderSettings() {
   const categories = getCategories(settingsType);
   const editingCategory = categories[editingCategoryIconIndex];
+  els.settingsMenuCards.forEach((card) => {
+    card.classList.toggle("active", card.dataset.settingsMenu === activeSettingsMenu);
+  });
+  els.settingsCustomizePanel.hidden = activeSettingsMenu !== "customize";
   els.settingsTypeButtons.forEach((button) => {
     button.classList.toggle("active", button.dataset.settingsType === settingsType);
   });
@@ -305,17 +356,14 @@ function renderSettings() {
   els.settingsCategoryList.innerHTML = categories
     .map(
       (category, index) => `
-        <article class="settings-category-row${index === editingCategoryIconIndex ? " editing" : ""}">
+        <article class="settings-category-row${index === editingCategoryIconIndex ? " editing" : ""}" data-category-row="${index}">
           <button class="settings-category-main" type="button" data-edit-category-icon="${index}">
             <i data-lucide="${category.icon}"></i>
             <strong>${escapeHtml(category.name)}</strong>
           </button>
           <div class="settings-category-actions">
-            <button class="icon-mini-button" type="button" data-move-category="${index}" data-direction="-1" aria-label="${escapeHtml(category.name)} 위로">
-              <i data-lucide="chevron-up"></i>
-            </button>
-            <button class="icon-mini-button" type="button" data-move-category="${index}" data-direction="1" aria-label="${escapeHtml(category.name)} 아래로">
-              <i data-lucide="chevron-down"></i>
+            <button class="drag-handle" type="button" data-drag-category="${index}" aria-label="${escapeHtml(category.name)} 순서 이동">
+              <i data-lucide="grip-vertical"></i>
             </button>
             <button class="icon-mini-button danger" type="button" data-delete-category="${index}" aria-label="${escapeHtml(category.name)} 삭제">
               <i data-lucide="trash-2"></i>
@@ -330,10 +378,58 @@ function renderSettings() {
 function renderSummary() {
   const month = thisMonthKey(calendarCursor);
   const data = getMonthlyData(month);
-  els.headerMonth.textContent = formatMonth(calendarCursor);
+  els.headerMonth.textContent = headerMessage;
   els.summaryExpense.textContent = formatWon(data.expense);
   els.summaryIncome.textContent = formatWon(data.income);
   els.summaryDesire.textContent = formatWon(data.desire);
+}
+
+function setLedgerDate(key) {
+  els.ledgerDate.value = key;
+  if (els.ledgerDateDisplay) {
+    els.ledgerDateDisplay.querySelector("span").textContent = formatFullDate(key);
+  }
+}
+
+function renderLedgerDatePopover() {
+  if (!els.ledgerDatePopover) return;
+  const today = parseDateKey(dateKey());
+  const quickDays = [
+    { label: "어제", offset: -1 },
+    { label: "오늘", offset: 0 },
+    { label: "내일", offset: 1 },
+  ];
+  const weekDays = Array.from({ length: 7 }, (_, index) => {
+    const day = new Date(today);
+    day.setDate(today.getDate() - 3 + index);
+    const key = dateKey(day);
+    return `
+      <button class="date-chip${key === els.ledgerDate.value ? " active" : ""}" type="button" data-ledger-date="${key}">
+        <strong>${new Intl.DateTimeFormat("ko-KR", { weekday: "short" }).format(day)}</strong>
+        <span>${day.getDate()}</span>
+      </button>
+    `;
+  }).join("");
+  els.ledgerDatePopover.innerHTML = `
+    <div class="date-quick-row">
+      ${quickDays
+        .map(({ label, offset }) => {
+          const day = new Date(today);
+          day.setDate(today.getDate() + offset);
+          const key = dateKey(day);
+          return `<button class="date-quick${key === els.ledgerDate.value ? " active" : ""}" type="button" data-ledger-date="${key}">${label}</button>`;
+        })
+        .join("")}
+    </div>
+    <div class="date-week-row">${weekDays}</div>
+  `;
+}
+
+function toggleLedgerDatePopover(show) {
+  if (!els.ledgerDatePopover || !els.ledgerDateDisplay) return;
+  renderLedgerDatePopover();
+  els.ledgerDatePopover.hidden = !show;
+  els.ledgerDateDisplay.setAttribute("aria-expanded", String(show));
 }
 
 function renderLedgerList() {
@@ -460,13 +556,15 @@ function renderReport() {
   const data = getMonthlyData(thisMonthKey(reportCursor));
   els.reportExpense.textContent = formatWon(data.expense);
   els.reportIncome.textContent = formatWon(data.income);
-  els.reportBalance.textContent = formatWon(data.income - data.expense);
   els.reportDesire.textContent = formatWon(data.desire);
   els.reportTypeButtons.forEach((button) => {
     button.classList.toggle("active", button.dataset.reportType === reportType);
   });
-  renderReportTransactionList(data);
+  renderCategoryReport(data);
+  renderReportDayList(data);
+}
 
+function renderCategoryReport(data) {
   const expenseRows = Object.entries(
     data.transactions
       .filter((item) => item.type === "expense")
@@ -486,55 +584,138 @@ function renderReport() {
     return;
   }
 
-  const max = Math.max(...expenseRows.map(([, amount]) => amount));
-  els.categoryReport.innerHTML = expenseRows
-    .map(([category, amount]) => {
-      const width = Math.max(8, Math.round((amount / max) * 100));
+  const total = expenseRows.reduce((sum, [, amount]) => sum + amount, 0);
+  const colors = ["#8b83d6", "#79b9aa", "#f2b8c8", "#f4d574", "#9ec7f0", "#c7b6ef", "#95d1b4", "#e6a7a1"];
+  let cursor = 0;
+  const segments = expenseRows
+    .map(([, amount], index) => {
+      const start = cursor;
+      const size = (amount / total) * 100;
+      cursor += size;
+      return `${colors[index % colors.length]} ${start}% ${cursor}%`;
+    })
+    .join(", ");
+  const topCategory = expenseRows[0];
+  const legend = expenseRows
+    .map(([category, amount], index) => {
+      const percent = Math.round((amount / total) * 100);
       return `
-        <article class="category-row">
-          <header>
-            <strong>${escapeHtml(category)}</strong>
-            <span>${formatWon(amount)}</span>
-          </header>
-          <div class="progress-track"><span style="width:${width}%"></span></div>
-        </article>
+        <li>
+          <span class="legend-dot" style="background:${colors[index % colors.length]}"></span>
+          <strong>${escapeHtml(category)}</strong>
+          <em>${percent}%</em>
+          <b>${formatWon(amount)}</b>
+        </li>
       `;
     })
     .join("");
+
+  els.categoryReport.innerHTML = `
+    <div class="donut-report">
+      <div
+        class="donut-chart"
+        style="background: conic-gradient(${segments});"
+        role="img"
+        aria-label="카테고리별 지출 비중"
+      >
+        <div>
+          <span>가장 큼</span>
+          <strong>${escapeHtml(topCategory[0])}</strong>
+          <em>${Math.round((topCategory[1] / total) * 100)}%</em>
+        </div>
+      </div>
+      <ul class="donut-legend">${legend}</ul>
+    </div>
+  `;
 }
 
-function renderReportTransactionList(data) {
-  const label = reportType === "income" ? "수입" : "지출";
+function renderReportDayList(data) {
+  const monthKey = thisMonthKey(reportCursor);
   const lastDay = new Date(reportCursor.getFullYear(), reportCursor.getMonth() + 1, 0).getDate();
-  const items = data.transactions
-    .filter((item) => item.type === reportType)
-    .sort((a, b) => `${b.dateKey}${b.createdAt}`.localeCompare(`${a.dateKey}${a.createdAt}`));
-  els.reportListTitle.textContent = `${label} 내역 · 1일~${lastDay}일`;
+  const totalsByDay = {};
 
-  if (!items.length) {
-    els.reportTransactionList.innerHTML = `
+  data.transactions.forEach((item) => {
+    totalsByDay[item.dateKey] ||= { expense: 0, income: 0, count: 0 };
+    totalsByDay[item.dateKey][item.type] += item.amount;
+    totalsByDay[item.dateKey].count += 1;
+  });
+
+  els.reportDayList.innerHTML = Array.from({ length: lastDay }, (_, index) => {
+    const day = index + 1;
+    const key = `${monthKey}-${String(day).padStart(2, "0")}`;
+    const totals = totalsByDay[key] || { expense: 0, income: 0, count: 0 };
+    return `
+      <button class="report-day-row${selectedReportDate === key ? " active" : ""}" type="button" data-report-date="${key}">
+        <span>${day}일</span>
+        <strong>${totals.count ? `${totals.count}건` : "기록 없음"}</strong>
+        <em>${totals.expense ? `-${formatWon(totals.expense)}` : ""}</em>
+        <b>${totals.income ? `+${formatWon(totals.income)}` : ""}</b>
+      </button>
+    `;
+  }).join("");
+
+  renderReportDayDetail();
+}
+
+function renderTransactionDetailForDate(key, emptyMessage) {
+  const items = getTransactionsForDate(key);
+  const totals = getTransactionTotals(items);
+  const list = items.length
+    ? items
+        .map((item) => {
+          const sign = item.type === "income" ? "+" : "-";
+          return `
+            <article class="money-item ${item.type}">
+              <div>
+                <strong>${escapeHtml(item.memo)}</strong>
+                <p>${escapeHtml(item.category)}</p>
+              </div>
+              <span>${sign}${formatWon(item.amount)}</span>
+            </article>
+          `;
+        })
+        .join("")
+    : `
       <article class="empty-state compact">
-        <strong>선택한 달의 ${label} 내역이 없어요</strong>
-        <p>가계부에 ${label}을 입력하면 월별로 모아볼 수 있어요.</p>
+        <strong>${emptyMessage}</strong>
+        <p>가계부 탭에서 이 날짜로 기록을 추가할 수 있어요.</p>
       </article>
     `;
+
+  return `
+    <div class="section-heading">
+      <div>
+        <span>날짜 상세</span>
+        <h2>${formatShortDate(key)}</h2>
+      </div>
+    </div>
+    <div class="day-summary-grid">
+      <article>
+        <span>지출</span>
+        <strong>${formatWon(totals.expense)}</strong>
+      </article>
+      <article>
+        <span>수입</span>
+        <strong>${formatWon(totals.income)}</strong>
+      </article>
+      <article>
+        <span>합계</span>
+        <strong>${formatWon(totals.income - totals.expense)}</strong>
+      </article>
+    </div>
+    <div class="day-transaction-list">${list}</div>
+  `;
+}
+
+function renderReportDayDetail() {
+  if (!selectedReportDate) {
+    els.reportDayDetail.hidden = true;
+    els.reportDayDetail.innerHTML = "";
     return;
   }
 
-  els.reportTransactionList.innerHTML = items
-    .map((item) => {
-      const sign = item.type === "income" ? "+" : "-";
-      return `
-        <article class="money-item ${item.type}">
-          <div>
-            <strong>${escapeHtml(item.memo)}</strong>
-            <p>${escapeHtml(item.category)} · ${formatShortDate(item.dateKey)}</p>
-          </div>
-          <span>${sign}${formatWon(item.amount)}</span>
-        </article>
-      `;
-    })
-    .join("");
+  els.reportDayDetail.hidden = false;
+  els.reportDayDetail.innerHTML = renderTransactionDetailForDate(selectedReportDate, "이 날의 가계부 내역이 없어요");
 }
 
 function initReportControls() {
@@ -716,9 +897,75 @@ function showToast(message) {
   showToast.timer = window.setTimeout(() => els.toast.classList.remove("show"), 1800);
 }
 
+function moveCategory(fromIndex, toIndex) {
+  const categories = getCategories(settingsType);
+  if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0 || fromIndex >= categories.length || toIndex >= categories.length) {
+    return false;
+  }
+  const [item] = categories.splice(fromIndex, 1);
+  categories.splice(toIndex, 0, item);
+  editingCategoryIconIndex = toIndex;
+  selectedCategoryIcon = item.icon;
+  saveState();
+  render();
+  return true;
+}
+
+function resetCategoryDrag() {
+  window.clearTimeout(categoryDrag.timer);
+  categoryDrag = {
+    index: -1,
+    overIndex: -1,
+    pointerId: null,
+    armed: false,
+  };
+  els.settingsCategoryList.classList.remove("dragging-list");
+  els.settingsCategoryList.querySelectorAll(".settings-category-row").forEach((row) => {
+    row.classList.remove("dragging", "drag-over");
+  });
+}
+
+function markCategoryDragOver(index) {
+  if (categoryDrag.overIndex === index) return;
+  categoryDrag.overIndex = index;
+  els.settingsCategoryList.querySelectorAll(".settings-category-row").forEach((row) => {
+    row.classList.toggle("drag-over", Number(row.dataset.categoryRow) === index && index !== categoryDrag.index);
+  });
+}
+
+function startCategoryDrag(index, pointerId, handle) {
+  resetCategoryDrag();
+  const row = handle.closest("[data-category-row]");
+  categoryDrag.index = index;
+  categoryDrag.overIndex = index;
+  categoryDrag.pointerId = pointerId;
+  categoryDrag.armed = true;
+  els.settingsCategoryList.classList.add("dragging-list");
+  row?.classList.add("dragging");
+  markCategoryDragOver(index);
+}
+
+function updateCategoryDrag(clientX, clientY) {
+  const row = document.elementFromPoint(clientX, clientY)?.closest("[data-category-row]");
+  if (!row || !els.settingsCategoryList.contains(row)) return;
+  markCategoryDragOver(Number(row.dataset.categoryRow));
+}
+
+function finishCategoryDrag(pointerId) {
+  if (categoryDrag.pointerId !== pointerId) return;
+  const fromIndex = categoryDrag.index;
+  const toIndex = categoryDrag.overIndex;
+  const shouldMove = categoryDrag.armed && fromIndex !== toIndex;
+  resetCategoryDrag();
+  if (shouldMove && moveCategory(fromIndex, toIndex)) {
+    showToast("카테고리 순서를 바꿨어요.");
+  }
+}
+
 function switchView(target) {
   els.tabs.forEach((item) => item.classList.toggle("active", item.dataset.view === target));
   els.views.forEach((view) => view.classList.toggle("active", view.dataset.viewPanel === target));
+  if (els.monthSummary) els.monthSummary.hidden = target !== "ledger";
 }
 
 function openProjectCreator() {
@@ -746,12 +993,26 @@ els.tabs.forEach((tab) => {
 
 els.summaryCards.forEach((card) => {
   card.addEventListener("click", () => {
+    if (card.dataset.summaryType === "desire") {
+      switchView("desire");
+      return;
+    }
     reportType = card.dataset.summaryType;
     reportCursor = new Date(calendarCursor);
     syncReportControls();
     switchView("report");
     render();
   });
+});
+
+els.goViewButtons.forEach((button) => {
+  button.addEventListener("click", () => switchView(button.dataset.goView));
+});
+
+els.headerSettings.addEventListener("click", () => {
+  switchView("settings");
+  renderSettings();
+  if (window.lucide) window.lucide.createIcons();
 });
 
 els.ledgerTypeButtons.forEach((button) => {
@@ -770,24 +1031,21 @@ els.ledgerCategoryPicker.addEventListener("click", (event) => {
   if (window.lucide) window.lucide.createIcons();
 });
 
-els.ledgerDate.addEventListener("click", () => {
-  if (typeof els.ledgerDate.showPicker === "function") {
-    try {
-      els.ledgerDate.showPicker();
-    } catch {
-      els.ledgerDate.focus();
-    }
-  }
+els.ledgerDateDisplay.addEventListener("click", () => {
+  toggleLedgerDatePopover(els.ledgerDatePopover.hidden);
 });
 
-els.ledgerDate.addEventListener("focus", () => {
-  if (typeof els.ledgerDate.showPicker === "function") {
-    try {
-      els.ledgerDate.showPicker();
-    } catch {
-      // Some browsers only allow showPicker during a direct click.
-    }
-  }
+els.ledgerDatePopover.addEventListener("click", (event) => {
+  const option = event.target.closest("[data-ledger-date]");
+  if (!option) return;
+  setLedgerDate(option.dataset.ledgerDate);
+  toggleLedgerDatePopover(false);
+});
+
+document.addEventListener("click", (event) => {
+  if (!els.ledgerDatePopover || els.ledgerDatePopover.hidden) return;
+  if (event.target.closest(".date-field")) return;
+  toggleLedgerDatePopover(false);
 });
 
 document.addEventListener("input", (event) => {
@@ -820,18 +1078,20 @@ els.ledgerForm.addEventListener("submit", (event) => {
   });
   saveState();
   els.ledgerForm.reset();
-  els.ledgerDate.value = dateKey();
+  setLedgerDate(dateKey());
   render();
   showToast(`${ledgerType === "income" ? "수입" : "지출"}을 기록했어요.`);
 });
 
 els.reportYear.addEventListener("change", () => {
   reportCursor.setFullYear(Number(els.reportYear.value));
+  selectedReportDate = "";
   renderReport();
 });
 
 els.reportMonth.addEventListener("change", () => {
   reportCursor.setMonth(Number(els.reportMonth.value) - 1);
+  selectedReportDate = "";
   renderReport();
 });
 
@@ -839,6 +1099,25 @@ els.reportTypeButtons.forEach((button) => {
   button.addEventListener("click", () => {
     reportType = button.dataset.reportType;
     renderReport();
+  });
+});
+
+els.reportDayList.addEventListener("click", (event) => {
+  const day = event.target.closest("[data-report-date]");
+  if (!day) return;
+  selectedReportDate = selectedReportDate === day.dataset.reportDate ? "" : day.dataset.reportDate;
+  renderReport();
+  if (window.lucide) window.lucide.createIcons();
+});
+
+els.settingsMenuCards.forEach((card) => {
+  card.addEventListener("click", () => {
+    activeSettingsMenu = card.dataset.settingsMenu;
+    renderSettings();
+    if (activeSettingsMenu !== "customize") {
+      showToast("이 설정은 조금 뒤에 열어둘게요.");
+    }
+    if (window.lucide) window.lucide.createIcons();
   });
 });
 
@@ -898,20 +1177,6 @@ els.settingsCategoryList.addEventListener("click", (event) => {
     return;
   }
 
-  const moveButton = event.target.closest("[data-move-category]");
-  if (moveButton) {
-    const index = Number(moveButton.dataset.moveCategory);
-    const nextIndex = index + Number(moveButton.dataset.direction);
-    if (nextIndex < 0 || nextIndex >= categories.length) return;
-    const [item] = categories.splice(index, 1);
-    categories.splice(nextIndex, 0, item);
-    editingCategoryIconIndex = nextIndex;
-    selectedCategoryIcon = item.icon;
-    saveState();
-    render();
-    return;
-  }
-
   const deleteButton = event.target.closest("[data-delete-category]");
   if (deleteButton) {
     const index = Number(deleteButton.dataset.deleteCategory);
@@ -925,6 +1190,61 @@ els.settingsCategoryList.addEventListener("click", (event) => {
     saveState();
     render();
   }
+});
+
+els.settingsCategoryList.addEventListener("pointerdown", (event) => {
+  const handle = event.target.closest("[data-drag-category]");
+  if (!handle) return;
+  event.preventDefault();
+  const index = Number(handle.dataset.dragCategory);
+  startCategoryDrag(index, event.pointerId, handle);
+
+  try {
+    handle.setPointerCapture(event.pointerId);
+  } catch {
+    // Pointer capture is a nice-to-have; the drag still works without it.
+  }
+});
+
+els.settingsCategoryList.addEventListener("pointermove", (event) => {
+  if (categoryDrag.pointerId !== event.pointerId || !categoryDrag.armed) return;
+  event.preventDefault();
+  updateCategoryDrag(event.clientX, event.clientY);
+});
+
+document.addEventListener("pointermove", (event) => {
+  if (categoryDrag.pointerId !== event.pointerId || !categoryDrag.armed) return;
+  event.preventDefault();
+  updateCategoryDrag(event.clientX, event.clientY);
+});
+
+document.addEventListener("pointerup", (event) => {
+  if (categoryDrag.pointerId === event.pointerId && categoryDrag.armed) {
+    updateCategoryDrag(event.clientX, event.clientY);
+  }
+  finishCategoryDrag(event.pointerId);
+});
+
+document.addEventListener("pointercancel", resetCategoryDrag);
+
+els.settingsCategoryList.addEventListener("mousedown", (event) => {
+  const handle = event.target.closest("[data-drag-category]");
+  if (!handle || categoryDrag.pointerId !== null) return;
+  event.preventDefault();
+  startCategoryDrag(Number(handle.dataset.dragCategory), "mouse", handle);
+});
+
+document.addEventListener("mousemove", (event) => {
+  if (categoryDrag.pointerId !== "mouse" || !categoryDrag.armed) return;
+  event.preventDefault();
+  updateCategoryDrag(event.clientX, event.clientY);
+});
+
+document.addEventListener("mouseup", (event) => {
+  if (categoryDrag.pointerId === "mouse" && categoryDrag.armed) {
+    updateCategoryDrag(event.clientX, event.clientY);
+  }
+  finishCategoryDrag("mouse");
 });
 
 els.calendarPrev.addEventListener("click", () => {
@@ -943,7 +1263,7 @@ els.calendarGrid.addEventListener("click", (event) => {
   const day = event.target.closest("[data-date]");
   if (!day) return;
   selectedCalendarDate = day.dataset.date;
-  els.ledgerDate.value = selectedCalendarDate;
+  setLedgerDate(selectedCalendarDate);
   renderCalendar();
   if (window.lucide) window.lucide.createIcons();
 });
@@ -1069,5 +1389,5 @@ document.addEventListener("keydown", (event) => {
 });
 
 initReportControls();
-els.ledgerDate.value = dateKey();
+setLedgerDate(dateKey());
 render();
