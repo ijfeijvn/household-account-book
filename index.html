@@ -42,6 +42,10 @@
             <span>욕망 저금통</span>
             <strong id="summary-desire">0원</strong>
           </button>
+          <button class="summary-card" type="button" data-summary-type="balance">
+            <span>남은 돈</span>
+            <strong id="summary-balance">0원</strong>
+          </button>
         </section>
 
         <div class="view active" id="ledger" data-view-panel="ledger">
@@ -63,7 +67,7 @@
               </label>
               <label>
                 <span>메모</span>
-                <input id="ledger-memo" name="memo" type="text" required />
+                <input id="ledger-memo" name="memo" type="text" />
               </label>
               <label>
                 <span>금액</span>
@@ -96,6 +100,16 @@
                 기록하기
               </button>
             </form>
+          </section>
+
+          <section class="timeline-panel fixed-panel" aria-labelledby="fixed-list-title">
+            <div class="section-heading">
+              <div>
+                <span>자동 반영</span>
+                <h2 id="fixed-list-title">고정지출</h2>
+              </div>
+            </div>
+            <div class="fixed-list" id="fixed-list"></div>
           </section>
 
           <section class="timeline-panel" aria-labelledby="ledger-list-title">
@@ -158,6 +172,8 @@
               <strong id="report-desire">0원</strong>
             </button>
           </section>
+
+          <section class="report-insight" id="report-insight" aria-live="polite"></section>
 
           <section class="timeline-panel">
             <div class="section-heading">
@@ -314,6 +330,13 @@
                 </span>
                 <input id="quick-start-toggle" type="checkbox" />
               </label>
+              <label class="budget-row">
+                <span>
+                  <strong>월 지출 예산</strong>
+                  <small>예산을 넣으면 상단에 남은 돈을 바로 보여줘요.</small>
+                </span>
+                <input id="monthly-budget" type="text" inputmode="numeric" pattern="[0-9,]*" />
+              </label>
               <p class="settings-note">나중에는 알림창이나 홈 화면 위젯에서도 바로 입력할 수 있게 확장할 수 있어요.</p>
             </section>
           </div>
@@ -341,6 +364,16 @@
     </main>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <aside class="desire-suggestion" id="desire-suggestion" hidden>
+      <div>
+        <strong>이 소비, 다음엔 참아볼까요?</strong>
+        <p id="desire-suggestion-text">욕망저금통 프로젝트에 목표로 남겨둘 수 있어요.</p>
+      </div>
+      <div class="desire-suggestion-actions">
+        <button class="secondary-button compact" type="button" id="dismiss-desire-suggestion">나중에</button>
+        <button class="primary-button compact" type="button" id="open-desire-suggestion">담아보기</button>
+      </div>
+    </aside>
     <div class="quick-entry" id="quick-entry" hidden>
       <div class="quick-entry-backdrop" data-close-quick></div>
       <section class="quick-entry-panel" role="dialog" aria-modal="true" aria-label="가계부 빠른 입력">
@@ -359,12 +392,12 @@
         <form id="quick-entry-form" novalidate>
           <div class="quick-step" data-quick-step-panel="details">
             <label>
-              <span>메모</span>
-              <input id="quick-memo" name="memo" type="text" required />
-            </label>
-            <label>
               <span>금액</span>
               <input id="quick-amount" name="amount" type="text" inputmode="numeric" pattern="[0-9,]*" required />
+            </label>
+            <label>
+              <span>메모</span>
+              <input id="quick-memo" name="memo" type="text" />
             </label>
             <section class="ledger-plan-panel quick-plan-panel" id="quick-plan-panel" aria-label="빠른 지출 옵션">
               <span>지출 옵션</span>

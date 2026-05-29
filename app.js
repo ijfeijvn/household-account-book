@@ -11,6 +11,9 @@ const seedState = {
   quickEntry: {
     enabled: true,
   },
+  budget: {
+    monthlyExpense: 0,
+  },
 };
 
 const defaultExpenseCategories = [
@@ -140,6 +143,7 @@ let categoryDrag = {
   pointerId: null,
   armed: false,
 };
+let pendingDesireSuggestion = null;
 
 const els = {
   tabs: document.querySelectorAll(".bottom-tab"),
@@ -150,6 +154,7 @@ const els = {
   summaryExpense: document.querySelector("#summary-expense"),
   summaryIncome: document.querySelector("#summary-income"),
   summaryDesire: document.querySelector("#summary-desire"),
+  summaryBalance: document.querySelector("#summary-balance"),
   headerSettings: document.querySelector("#header-settings"),
   ledgerTypeButtons: document.querySelectorAll("[data-ledger-type]"),
   ledgerForm: document.querySelector("#ledger-form"),
@@ -163,6 +168,7 @@ const els = {
   installmentMonthsRow: document.querySelector("#installment-months-row"),
   planMonthsLabel: document.querySelector("#plan-months-label"),
   installmentMonths: document.querySelector("#installment-months"),
+  fixedList: document.querySelector("#fixed-list"),
   ledgerList: document.querySelector("#ledger-list"),
   toggleLedgerList: document.querySelector("#toggle-ledger-list"),
   calendarPrev: document.querySelector("#calendar-prev"),
@@ -174,6 +180,7 @@ const els = {
   reportExpense: document.querySelector("#report-expense"),
   reportIncome: document.querySelector("#report-income"),
   reportDesire: document.querySelector("#report-desire"),
+  reportInsight: document.querySelector("#report-insight"),
   categoryReport: document.querySelector("#category-report"),
   reportDayList: document.querySelector("#report-day-list"),
   reportDayDetail: document.querySelector("#report-day-detail"),
@@ -201,6 +208,7 @@ const els = {
   settingsQuickPanel: document.querySelector("#settings-quick-panel"),
   moodPicker: document.querySelector("#mood-picker"),
   quickStartToggle: document.querySelector("#quick-start-toggle"),
+  monthlyBudget: document.querySelector("#monthly-budget"),
   quickEntry: document.querySelector("#quick-entry"),
   quickEntryForm: document.querySelector("#quick-entry-form"),
   quickTypeButtons: document.querySelectorAll("[data-quick-type]"),
@@ -222,6 +230,10 @@ const els = {
   recordModal: document.querySelector("#record-modal"),
   recordModalBody: document.querySelector("#record-modal-body"),
   closeRecordDetail: document.querySelector("#close-record-detail"),
+  desireSuggestion: document.querySelector("#desire-suggestion"),
+  desireSuggestionText: document.querySelector("#desire-suggestion-text"),
+  dismissDesireSuggestion: document.querySelector("#dismiss-desire-suggestion"),
+  openDesireSuggestion: document.querySelector("#open-desire-suggestion"),
   toast: document.querySelector("#toast"),
 };
 
@@ -245,6 +257,7 @@ function loadState() {
       categorySettings: normalizeCategorySettings(parsed.categorySettings),
       appearance: normalizeAppearance(parsed.appearance),
       quickEntry: normalizeQuickEntry(parsed.quickEntry),
+      budget: normalizeBudget(parsed.budget),
       schemaVersion: seedState.schemaVersion,
     };
     recalculateProjectSavings(migrated);
@@ -252,6 +265,12 @@ function loadState() {
   } catch {
     return structuredClone(seedState);
   }
+}
+
+function normalizeBudget(budget) {
+  return {
+    monthlyExpense: Number(budget?.monthlyExpense || 0),
+  };
 }
 
 function normalizeQuickEntry(quickEntry) {
@@ -495,10 +514,18 @@ function getTransactionTotals(items) {
   };
 }
 
+function getMonthlyBudget() {
+  if (!state.budget) {
+    state.budget = normalizeBudget();
+  }
+  return Number(state.budget.monthlyExpense || 0);
+}
+
 function render() {
   renderLedgerType();
   renderQuickEntry();
   renderSummary();
+  renderFixedSchedules();
   renderLedgerList();
   renderCalendar();
   renderReport();
@@ -591,18 +618,16 @@ function renderQuickPlan() {
 function validateQuickDetails() {
   clearFieldErrors(els.quickEntryForm);
   const formData = new FormData(els.quickEntryForm);
-  const memo = String(formData.get("memo")).trim();
   const amount = parseWon(formData.get("amount"));
   const monthCount = parseMonthCount(formData.get("quickInstallmentMonths"));
   const needsMonths = quickType === "expense" && quickPlanMode !== "single";
   const invalidFields = [
-    !memo ? els.quickEntryForm.elements.memo : null,
     amount <= 0 ? els.quickEntryForm.elements.amount : null,
     needsMonths && monthCount <= 0 ? els.quickInstallmentMonths : null,
   ];
 
   if (invalidFields.some(Boolean)) {
-    showFormErrors(invalidFields, needsMonths ? "메모와 금액, 개월 수를 확인해 주세요." : "메모와 금액을 확인해 주세요.");
+    showFormErrors(invalidFields, needsMonths ? "금액과 개월 수를 확인해 주세요." : "금액을 확인해 주세요.");
     return false;
   }
 
@@ -622,6 +647,7 @@ function renderSettings() {
   els.settingsMoodPanel.hidden = activeSettingsMenu !== "mood";
   els.settingsQuickPanel.hidden = activeSettingsMenu !== "quick";
   els.quickStartToggle.checked = Boolean(state.quickEntry?.enabled);
+  els.monthlyBudget.value = getMonthlyBudget() ? formatNumberInput(getMonthlyBudget()) : "";
   els.moodPicker.innerHTML = moodThemes
     .map(
       (theme) => `
@@ -735,10 +761,13 @@ function closeQuickEntry() {
 function renderSummary() {
   const month = thisMonthKey(calendarCursor);
   const data = getMonthlyData(month);
+  const budget = getMonthlyBudget();
+  const balance = budget > 0 ? budget - data.expense : data.income - data.expense;
   els.headerMonth.textContent = "설정";
   els.summaryExpense.textContent = formatWon(data.expense);
   els.summaryIncome.textContent = formatWon(data.income);
   els.summaryDesire.textContent = formatWon(data.desire);
+  els.summaryBalance.textContent = formatWon(balance);
 }
 
 function setLedgerDate(key) {
@@ -826,6 +855,33 @@ function renderLedgerList() {
         </article>
       `;
     })
+    .join("");
+}
+
+function renderFixedSchedules() {
+  const schedules = state.schedules || [];
+  if (!schedules.length) {
+    els.fixedList.innerHTML = `
+      <article class="empty-state compact">
+        <strong>아직 고정지출이 없어요</strong>
+        <p>매달 반복이나 할부로 기록하면 이곳에 모여요.</p>
+      </article>
+    `;
+    return;
+  }
+
+  els.fixedList.innerHTML = schedules
+    .slice()
+    .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
+    .map((schedule) => `
+      <article class="money-item expense">
+        <div>
+          <strong>${escapeHtml(schedule.memo || schedule.category)}</strong>
+          <p>${escapeHtml(schedule.category)} · ${schedule.scheduleType === "repeat" ? `${schedule.months}개월 반복` : `${schedule.months}개월 할부`}</p>
+        </div>
+        <span>-${formatWon(schedule.amount)}</span>
+      </article>
+    `)
     .join("");
 }
 
@@ -940,8 +996,35 @@ function renderReport() {
   els.reportTypeButtons.forEach((button) => {
     button.classList.toggle("active", button.dataset.reportType === reportType);
   });
+  renderReportInsight(data);
   renderCategoryReport(data);
   renderReportDayList(data);
+}
+
+function renderReportInsight(data) {
+  const expenseByCategory = data.transactions
+    .filter((item) => item.type === "expense")
+    .reduce((acc, item) => {
+      acc[item.category] = (acc[item.category] || 0) + item.amount;
+      return acc;
+    }, {});
+  const top = Object.entries(expenseByCategory).sort((a, b) => b[1] - a[1])[0];
+  const budget = getMonthlyBudget();
+  const remaining = budget > 0 ? budget - data.expense : data.income - data.expense;
+  const dayCount = new Date(reportCursor.getFullYear(), reportCursor.getMonth() + 1, 0).getDate();
+  const dailyAverage = Math.round(data.expense / dayCount);
+  const firstLine = top
+    ? `이번 달은 ${top[0]}에 가장 많이 썼어요.`
+    : "이번 달은 아직 지출 기록이 많지 않아요.";
+  const secondLine = budget > 0
+    ? `예산 기준으로 ${remaining >= 0 ? `${formatWon(remaining)} 남았어요.` : `${formatWon(Math.abs(remaining))} 초과했어요.`}`
+    : remaining >= 0
+      ? `수입에서 지출을 빼면 ${formatWon(remaining)} 남았어요.`
+      : `수입보다 지출이 ${formatWon(Math.abs(remaining))} 많아요.`;
+  els.reportInsight.innerHTML = `
+    <strong>${firstLine}</strong>
+    <p>${secondLine} 하루 평균 지출은 ${formatWon(dailyAverage)}입니다.</p>
+  `;
 }
 
 function renderCategoryReport(data) {
@@ -1275,6 +1358,32 @@ function showToast(message) {
   showToast.timer = window.setTimeout(() => els.toast.classList.remove("show"), 1800);
 }
 
+function showDesireSuggestion(transaction) {
+  pendingDesireSuggestion = transaction;
+  els.desireSuggestionText.textContent = `${transaction.memo} ${formatWon(transaction.amount)}을 다음 프로젝트 목표로 남겨둘 수 있어요.`;
+  els.desireSuggestion.hidden = false;
+  window.clearTimeout(showDesireSuggestion.timer);
+  showDesireSuggestion.timer = window.setTimeout(hideDesireSuggestion, 9000);
+}
+
+function hideDesireSuggestion() {
+  els.desireSuggestion.hidden = true;
+}
+
+function openDesireFromSuggestion() {
+  if (!pendingDesireSuggestion) return;
+  hideDesireSuggestion();
+  switchView("desire");
+  if (!state.projects.length) {
+    openProjectCreator();
+    showToast("먼저 프로젝트를 만들어주세요.");
+    return;
+  }
+  selectedProjectId = state.projects[0].id;
+  renderProjects();
+  showToast("프로젝트에서 참은 욕망으로 남겨보세요.");
+}
+
 function moveCategory(fromIndex, toIndex) {
   const categories = getCategories(settingsType);
   if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0 || fromIndex >= categories.length || toIndex >= categories.length) {
@@ -1375,6 +1484,12 @@ els.summaryCards.forEach((card) => {
       switchView("desire");
       return;
     }
+    if (card.dataset.summaryType === "balance") {
+      activeSettingsMenu = "quick";
+      switchView("settings");
+      renderSettings();
+      return;
+    }
     reportType = card.dataset.summaryType;
     reportCursor = new Date(calendarCursor);
     syncReportControls();
@@ -1382,6 +1497,9 @@ els.summaryCards.forEach((card) => {
     render();
   });
 });
+
+els.dismissDesireSuggestion.addEventListener("click", hideDesireSuggestion);
+els.openDesireSuggestion.addEventListener("click", openDesireFromSuggestion);
 
 els.goViewButtons.forEach((button) => {
   button.addEventListener("click", () => switchView(button.dataset.goView));
@@ -1541,35 +1659,36 @@ els.ledgerForm.addEventListener("submit", (event) => {
 
   const invalidFields = [
     !selectedDate ? els.ledgerDateDisplay : null,
-    !memo ? els.ledgerForm.elements.memo : null,
     amount <= 0 ? els.ledgerForm.elements.amount : null,
     needsMonths && installmentMonths <= 0 ? els.installmentMonths : null,
     !category ? els.ledgerCategoryPicker : null,
   ];
 
   if (invalidFields.some(Boolean)) {
-    showFormErrors(invalidFields, needsMonths ? "메모와 금액, 개월 수를 확인해 주세요." : "메모와 금액을 확인해 주세요.");
+    showFormErrors(invalidFields, needsMonths ? "금액과 개월 수를 확인해 주세요." : "금액을 확인해 주세요.");
     return;
   }
+  const displayMemo = memo || category;
 
   const wasScheduledExpense = ledgerType === "expense" && ledgerPlanMode !== "single";
   if (wasScheduledExpense) {
     addLedgerSchedule({
       scheduleType: ledgerPlanMode === "repeat" ? "repeat" : "installment",
-      memo,
+      memo: displayMemo,
       amount,
       category,
       selectedDate,
       months: installmentMonths,
     });
   } else {
-    addLedgerTransaction({ type: ledgerType, memo, amount, category, selectedDate });
+    addLedgerTransaction({ type: ledgerType, memo: displayMemo, amount, category, selectedDate });
   }
   els.ledgerForm.reset();
   setLedgerDate(dateKey());
   ledgerPlanMode = "single";
   render();
   showToast(wasScheduledExpense ? "지출 일정을 만들었어요." : `${ledgerType === "income" ? "수입" : "지출"}을 기록했어요.`);
+  if (ledgerType === "expense") showDesireSuggestion({ memo: displayMemo, amount });
 });
 
 els.quickEntryForm.addEventListener("submit", (event) => {
@@ -1590,29 +1709,29 @@ els.quickEntryForm.addEventListener("submit", (event) => {
   const needsMonths = quickType === "expense" && quickPlanMode !== "single";
 
   const invalidFields = [
-    !memo ? els.quickEntryForm.elements.memo : null,
     amount <= 0 ? els.quickEntryForm.elements.amount : null,
     needsMonths && installmentMonths <= 0 ? els.quickInstallmentMonths : null,
     !category ? els.quickCategoryPicker : null,
   ];
 
   if (invalidFields.some(Boolean)) {
-    showFormErrors(invalidFields, needsMonths ? "메모와 금액, 개월 수를 확인해 주세요." : "메모와 금액을 확인해 주세요.");
+    showFormErrors(invalidFields, needsMonths ? "금액과 개월 수를 확인해 주세요." : "금액을 확인해 주세요.");
     return;
   }
+  const displayMemo = memo || category;
 
   const wasScheduledExpense = quickType === "expense" && quickPlanMode !== "single";
   if (wasScheduledExpense) {
     addLedgerSchedule({
       scheduleType: quickPlanMode === "repeat" ? "repeat" : "installment",
-      memo,
+      memo: displayMemo,
       amount,
       category,
       selectedDate: dateKey(),
       months: installmentMonths,
     });
   } else {
-    addLedgerTransaction({ type: quickType, memo, amount, category, selectedDate: dateKey() });
+    addLedgerTransaction({ type: quickType, memo: displayMemo, amount, category, selectedDate: dateKey() });
   }
   quickPlanMode = "single";
   quickStep = "details";
@@ -1620,6 +1739,7 @@ els.quickEntryForm.addEventListener("submit", (event) => {
   setLedgerDate(dateKey());
   render();
   showToast(wasScheduledExpense ? "지출 일정을 만들었어요." : `${quickType === "income" ? "수입" : "지출"}을 기록했어요.`);
+  if (quickType === "expense") showDesireSuggestion({ memo: displayMemo, amount });
 });
 
 els.reportYear.addEventListener("change", () => {
@@ -1676,6 +1796,13 @@ els.quickStartToggle.addEventListener("change", () => {
   saveState();
   renderSettings();
   showToast(state.quickEntry.enabled ? "앱 시작 빠른 입력을 켰어요." : "앱 시작 빠른 입력을 껐어요.");
+});
+
+els.monthlyBudget.addEventListener("change", () => {
+  state.budget = normalizeBudget({ monthlyExpense: parseWon(els.monthlyBudget.value) });
+  saveState();
+  render();
+  showToast(state.budget.monthlyExpense ? "월 예산을 저장했어요." : "월 예산을 비웠어요.");
 });
 
 els.settingsTypeButtons.forEach((button) => {
