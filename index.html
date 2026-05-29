@@ -3,167 +3,427 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>욕망 저금통</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Noto+Sans+KR:wght@400;500;700;800&display=swap"
-      rel="stylesheet"
-    />
+    <title>욕망가계부</title>
+    <link rel="icon" href="./assets/desire-bank-logo.png" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <main class="app-shell">
-      <aside class="story-panel" aria-label="앱 무드보드">
+      <aside class="story-panel" aria-label="앱 소개">
         <div class="story-copy">
-          <span class="overline">욕망을 소망으로</span>
-          <h1>오늘 참은 마음이 내일의 꿈이 되도록.</h1>
-          <p>내 돈은 내 계좌에 그대로, 욕망 저금통은 선택의 기억과 성취를 모아줍니다.</p>
+          <span class="overline">desire money note</span>
+          <h1>쓴 돈과 참은 돈을 함께 보는 가계부</h1>
+          <p>지출은 차분히 정리하고, 참은 욕망은 프로젝트에 모아 소망으로 바꿔보세요.</p>
         </div>
-        <img class="story-image" src="./assets/dream-jar.png" alt="빛나는 저금통 일러스트" />
       </aside>
 
-      <section class="phone" aria-label="욕망 저금통 앱">
+      <section class="phone" aria-label="욕망가계부">
         <header class="topbar">
-          <button class="icon-button" type="button" aria-label="메뉴">
-            <i data-lucide="sparkles"></i>
-          </button>
-          <div>
-            <p>욕망 저금통</p>
-            <strong>소망 홈</strong>
+          <div class="brand-mark" aria-label="욕망가계부">
+            <img src="./assets/desire-bank-logo.png" alt="" />
+            <span>욕망가계부</span>
           </div>
-          <button class="icon-button" type="button" aria-label="알림">
-            <i data-lucide="bell"></i>
+          <button class="month-chip settings-chip" type="button" id="header-settings">
+            <i data-lucide="settings"></i>
+            <span id="header-month">설정</span>
           </button>
         </header>
 
-        <nav class="tabs" aria-label="화면 전환">
-          <button class="tab active" type="button" data-view="home">홈</button>
-          <button class="tab" type="button" data-view="projects">프로젝트</button>
-          <button class="tab" type="button" data-view="community">커뮤니티</button>
-        </nav>
+        <section class="month-summary" aria-label="이번 달 요약">
+          <button class="summary-card" type="button" data-summary-type="expense">
+            <span>지출</span>
+            <strong id="summary-expense">0원</strong>
+          </button>
+          <button class="summary-card" type="button" data-summary-type="income">
+            <span>수입</span>
+            <strong id="summary-income">0원</strong>
+          </button>
+          <button class="summary-card" type="button" data-summary-type="desire">
+            <span>욕망 저금통</span>
+            <strong id="summary-desire">0원</strong>
+          </button>
+        </section>
 
-        <div class="view active" id="home" data-view-panel="home">
-          <section class="hero-panel">
-            <div class="hero-text">
-              <span>이번 달 참은 욕망</span>
-              <strong id="month-total">0원</strong>
-              <p id="month-message">작은 선택들이 조용히 자라고 있어요.</p>
-            </div>
-            <div class="hero-jar">
-              <img src="./assets/dream-jar.png" alt="" />
-            </div>
-          </section>
-
-          <section class="form-panel" aria-labelledby="record-title">
-            <div class="section-heading">
-              <div>
-                <span>새 기록</span>
-                <h2 id="record-title">오늘 참은 욕망</h2>
-              </div>
-              <button class="icon-button soft" type="button" id="reset-demo" aria-label="처음 상태로 되돌리기">
-                <i data-lucide="rotate-ccw"></i>
-              </button>
+        <div class="view active" id="ledger" data-view-panel="ledger">
+          <section class="form-panel ledger-panel" aria-label="가계부 입력">
+            <div class="segmented" role="tablist" aria-label="거래 종류">
+              <button class="segment active" type="button" data-ledger-type="expense">지출</button>
+              <button class="segment" type="button" data-ledger-type="income">수입</button>
             </div>
 
-            <form id="saving-form">
-              <label>
-                <span>욕망</span>
-                <input id="desire" name="desire" type="text" placeholder="예: 치킨, 택시, 충동구매" required />
+            <form id="ledger-form" novalidate>
+              <label class="date-field">
+                <span>날짜</span>
+                <input id="ledger-date" name="date" type="hidden" required />
+                <button class="date-display" type="button" id="ledger-date-display" aria-expanded="false">
+                  <span>오늘</span>
+                  <i data-lucide="calendar-days"></i>
+                </button>
+                <div class="date-popover" id="ledger-date-popover" hidden></div>
               </label>
-              <div class="field-grid">
-                <label>
-                  <span>아낀 금액</span>
-                  <input id="amount" name="amount" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="20000" required />
-                </label>
-                <label>
-                  <span>기부</span>
-                  <input id="donation" name="donation" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="2000" />
-                </label>
-              </div>
               <label>
-                <span>프로젝트</span>
-                <select id="project" name="project"></select>
+                <span>메모</span>
+                <input id="ledger-memo" name="memo" type="text" required />
               </label>
-              <div class="mood-row" role="group" aria-label="기분 선택">
-                <input type="radio" name="mood" id="mood-proud" value="뿌듯함" checked />
-                <label for="mood-proud">뿌듯함</label>
-                <input type="radio" name="mood" id="mood-calm" value="차분함" />
-                <label for="mood-calm">차분함</label>
-                <input type="radio" name="mood" id="mood-wobbly" value="흔들렸음" />
-                <label for="mood-wobbly">흔들렸음</label>
-              </div>
+              <label>
+                <span>금액</span>
+                <input id="ledger-amount" name="amount" type="text" inputmode="numeric" pattern="[0-9,]*" required />
+              </label>
+              <label>
+                <span>카테고리</span>
+                <input id="ledger-category" name="category" type="hidden" required />
+                <div class="category-picker" id="ledger-category-picker" role="radiogroup" aria-label="카테고리 선택"></div>
+              </label>
+              <section class="ledger-plan-panel" id="ledger-plan-panel" aria-label="지출 옵션">
+                <span>지출 옵션</span>
+                <div class="plan-option-grid">
+                  <button class="plan-option active" type="button" data-plan-mode="single">
+                    <strong>한 번</strong>
+                  </button>
+                  <button class="plan-option" type="button" data-plan-mode="repeat">
+                    <strong>매달 반복</strong>
+                  </button>
+                  <button class="plan-option" type="button" data-plan-mode="installment">
+                    <strong>할부</strong>
+                  </button>
+                </div>
+                <label class="plan-months-row" id="installment-months-row" hidden>
+                  <span id="plan-months-label">개월</span>
+                  <input id="installment-months" name="installmentMonths" type="text" inputmode="numeric" pattern="[0-9]*" value="3" data-month-input />
+                </label>
+              </section>
               <button class="primary-button" type="submit">
-                <i data-lucide="plus"></i>
                 기록하기
               </button>
             </form>
           </section>
 
-          <section class="timeline-panel" aria-labelledby="timeline-title">
-            <div class="section-heading">
+          <section class="timeline-panel" aria-labelledby="ledger-list-title">
+            <div class="section-heading ledger-history-heading">
               <div>
-                <span>타임라인</span>
-                <h2 id="timeline-title">욕망이 바뀐 순간들</h2>
+                <h2 id="ledger-list-title">최근 기록</h2>
               </div>
+              <button class="collapse-button" type="button" id="toggle-ledger-list" aria-expanded="true">
+                <i data-lucide="chevron-up"></i>
+                <span>접기</span>
+              </button>
             </div>
-            <div class="timeline" id="timeline"></div>
+            <div class="timeline" id="ledger-list"></div>
           </section>
         </div>
 
-        <div class="view" id="projects" data-view-panel="projects">
+        <div class="view" id="calendar" data-view-panel="calendar">
+          <section class="calendar-toolbar" aria-label="달력 월 선택">
+            <button class="icon-button soft" type="button" id="calendar-prev" aria-label="이전 달">
+              <i data-lucide="chevron-left"></i>
+            </button>
+            <strong id="calendar-title">이번 달</strong>
+            <button class="icon-button soft" type="button" id="calendar-next" aria-label="다음 달">
+              <i data-lucide="chevron-right"></i>
+            </button>
+          </section>
+          <section class="calendar-month-summary" id="calendar-month-summary" aria-label="월 합계"></section>
+          <section class="calendar-card">
+            <div class="calendar-weekdays" aria-hidden="true">
+              <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
+            </div>
+            <div class="calendar-grid" id="calendar-grid"></div>
+          </section>
+          <section class="calendar-detail-panel" id="calendar-day-detail" aria-live="polite"></section>
+        </div>
+
+        <div class="view" id="report" data-view-panel="report">
+          <section class="report-period-panel" aria-label="리포트 기간 선택">
+            <label>
+              <span>연도</span>
+              <select id="report-year"></select>
+            </label>
+            <label>
+              <span>월</span>
+              <select id="report-month"></select>
+            </label>
+          </section>
+
+          <section class="report-grid">
+            <article class="report-card">
+              <span>선택한 달 지출</span>
+              <strong id="report-expense">0원</strong>
+            </article>
+            <article class="report-card">
+              <span>선택한 달 수입</span>
+              <strong id="report-income">0원</strong>
+            </article>
+            <button class="report-card report-nav-card" type="button" data-go-view="desire">
+              <span>참은 금액</span>
+              <strong id="report-desire">0원</strong>
+            </button>
+          </section>
+
+          <section class="timeline-panel">
+            <div class="section-heading">
+              <div>
+                <span>카테고리</span>
+                <h2>이번 달 지출이 모인 곳</h2>
+              </div>
+            </div>
+            <div class="category-report" id="category-report"></div>
+          </section>
+
+          <section class="timeline-panel">
+            <div class="section-heading">
+              <div>
+                <span>날짜별</span>
+                <h2>1일부터 말일까지</h2>
+              </div>
+            </div>
+            <div class="report-day-list" id="report-day-list"></div>
+            <section class="calendar-detail-panel report-day-detail" id="report-day-detail" hidden></section>
+          </section>
+        </div>
+
+        <div class="view" id="desire" data-view-panel="desire">
           <section class="section-heading page-heading">
             <div>
-              <span>나의 소망</span>
-              <h2>프로젝트 저금통</h2>
+              <span>욕망 저금통</span>
+              <h2>프로젝트</h2>
             </div>
             <button class="icon-button soft" type="button" id="add-project" aria-label="프로젝트 추가">
               <i data-lucide="folder-plus"></i>
             </button>
           </section>
-          <div class="project-list" id="project-list"></div>
-          <section class="donation-panel">
-            <div>
-              <span>함께 만드는 선의</span>
-              <h2>5월 공동 기부 프로젝트</h2>
-              <p>청년 마음돌봄 상담 지원</p>
-            </div>
-            <strong id="donation-total">0원</strong>
-            <div class="progress-track">
-              <span id="donation-progress"></span>
-            </div>
-          </section>
-        </div>
 
-        <div class="view" id="community" data-view-panel="community">
-          <section class="community-compose">
+          <section class="project-create-panel" id="project-create-panel" aria-labelledby="project-create-title">
             <div class="section-heading">
               <div>
-                <span>작은 승리</span>
-                <h2>따뜻한 커뮤니티</h2>
+                <span>새 프로젝트</span>
+                <h2 id="project-create-title">소망 저금통 만들기</h2>
               </div>
             </div>
-            <form id="community-form">
+            <form id="project-form">
               <label>
-                <span>공유할 절제 기록</span>
-                <select id="community-record" required></select>
+                <span>프로젝트 이름</span>
+                <input id="project-name" name="projectName" type="text" placeholder="예: 제주 여행, 노트북, 이사 자금" required />
               </label>
               <label>
-                <span>짧은 생각</span>
-                <textarea id="community-text" rows="3" placeholder="오늘 이 욕망을 참으며 들었던 생각" required></textarea>
+                <span>목표 금액</span>
+                <input id="project-goal" name="projectGoal" type="text" inputmode="numeric" pattern="[0-9,]*" placeholder="500,000" required />
               </label>
-              <button class="primary-button secondary" type="submit">
-                <i data-lucide="send"></i>
-                공유하기
-              </button>
+              <div class="button-row">
+                <button class="secondary-button" type="button" id="cancel-project">취소</button>
+                <button class="primary-button compact" type="submit">
+                  <i data-lucide="check"></i>
+                  만들기
+                </button>
+              </div>
             </form>
           </section>
-          <section class="community-feed" id="community-feed" aria-label="커뮤니티 피드"></section>
+
+          <div class="project-list" id="project-list"></div>
         </div>
+
+        <div class="view" id="settings" data-view-panel="settings">
+          <section class="section-heading page-heading">
+            <div>
+              <span>설정</span>
+              <h2>설정</h2>
+            </div>
+          </section>
+
+          <section class="settings-menu" aria-label="설정 메뉴">
+            <button class="settings-menu-card active" type="button" data-settings-menu="customize">
+              <i data-lucide="palette"></i>
+              <strong>커스터마이징</strong>
+              <span>카테고리와 아이콘을 내 방식대로 정리해요.</span>
+            </button>
+            <button class="settings-menu-card" type="button" data-settings-menu="mood">
+              <i data-lucide="sparkles"></i>
+              <strong>화면 분위기</strong>
+              <span>앱 전체의 색감과 느낌을 고를 수 있어요.</span>
+            </button>
+            <button class="settings-menu-card" type="button" data-settings-menu="quick">
+              <i data-lucide="zap"></i>
+              <strong>빠른 입력</strong>
+              <span>앱을 열자마자 바로 기록할지 정해요.</span>
+            </button>
+            <button class="settings-menu-card" type="button" data-settings-menu="data">
+              <i data-lucide="archive"></i>
+              <strong>데이터 관리</strong>
+              <span>백업과 복원 메뉴를 나중에 붙일 수 있어요.</span>
+            </button>
+          </section>
+
+          <div id="settings-customize-panel">
+            <section class="form-panel settings-panel">
+              <div class="segmented" role="tablist" aria-label="카테고리 종류">
+                <button class="segment active" type="button" data-settings-type="expense">지출</button>
+                <button class="segment" type="button" data-settings-type="income">수입</button>
+              </div>
+
+              <form id="category-form">
+                <label>
+                  <span>카테고리 이름</span>
+                  <input id="category-name" name="categoryName" type="text" placeholder="예: 반려동물, 취미, 투자" required />
+                </label>
+                <input id="category-icon" name="categoryIcon" type="hidden" />
+                <div class="settings-icon-block">
+                  <span id="settings-icon-title">아이콘 선택</span>
+                  <div class="settings-icon-picker" id="settings-icon-picker"></div>
+                </div>
+                <button class="primary-button compact" type="submit">
+                  <i data-lucide="plus"></i>
+                  카테고리 추가
+                </button>
+              </form>
+            </section>
+
+            <section class="timeline-panel">
+              <div class="section-heading">
+                <div>
+                  <span>배치 순서</span>
+                  <h2 id="settings-list-title">지출 카테고리</h2>
+                </div>
+              </div>
+              <div class="settings-category-list" id="settings-category-list"></div>
+            </section>
+          </div>
+
+          <div id="settings-mood-panel" hidden>
+            <section class="timeline-panel mood-panel">
+              <div class="section-heading">
+                <div>
+                  <span>화면 분위기</span>
+                  <h2>오늘의 톤 고르기</h2>
+                </div>
+              </div>
+              <div class="mood-picker" id="mood-picker"></div>
+            </section>
+          </div>
+
+          <div id="settings-quick-panel" hidden>
+            <section class="timeline-panel quick-settings-panel">
+              <div class="section-heading">
+                <div>
+                  <span>빠른 입력</span>
+                  <h2>기록까지 한 번에</h2>
+                </div>
+              </div>
+              <label class="switch-row">
+                <span>
+                  <strong>앱 시작 시 입력창 열기</strong>
+                  <small>앱을 켜면 바로 지출/수입을 적을 수 있어요.</small>
+                </span>
+                <input id="quick-start-toggle" type="checkbox" />
+              </label>
+              <p class="settings-note">나중에는 알림창이나 홈 화면 위젯에서도 바로 입력할 수 있게 확장할 수 있어요.</p>
+            </section>
+          </div>
+        </div>
+
+        <nav class="bottom-tabs" aria-label="화면 전환">
+          <button class="bottom-tab active" type="button" data-view="ledger">
+            <i data-lucide="notebook-pen"></i>
+            <span>가계부</span>
+          </button>
+          <button class="bottom-tab" type="button" data-view="calendar">
+            <i data-lucide="calendar-days"></i>
+            <span>달력</span>
+          </button>
+          <button class="bottom-tab" type="button" data-view="report">
+            <i data-lucide="pie-chart"></i>
+            <span>리포트</span>
+          </button>
+          <button class="bottom-tab" type="button" data-view="desire">
+            <i data-lucide="sparkles"></i>
+            <span>욕망저금통</span>
+          </button>
+        </nav>
       </section>
     </main>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <div class="quick-entry" id="quick-entry" hidden>
+      <div class="quick-entry-backdrop" data-close-quick></div>
+      <section class="quick-entry-panel" role="dialog" aria-modal="true" aria-label="가계부 빠른 입력">
+        <div class="quick-entry-handle" aria-hidden="true"></div>
+        <header class="quick-entry-header compact">
+          <button class="icon-button soft" type="button" id="close-quick-entry" aria-label="빠른 입력 닫기">
+            <i data-lucide="x"></i>
+          </button>
+        </header>
+
+        <div class="segmented quick-segmented" role="tablist" aria-label="빠른 거래 종류">
+          <button class="segment active" type="button" data-quick-type="expense">지출</button>
+          <button class="segment" type="button" data-quick-type="income">수입</button>
+        </div>
+
+        <form id="quick-entry-form" novalidate>
+          <div class="quick-step" data-quick-step-panel="details">
+            <label>
+              <span>메모</span>
+              <input id="quick-memo" name="memo" type="text" required />
+            </label>
+            <label>
+              <span>금액</span>
+              <input id="quick-amount" name="amount" type="text" inputmode="numeric" pattern="[0-9,]*" required />
+            </label>
+            <section class="ledger-plan-panel quick-plan-panel" id="quick-plan-panel" aria-label="빠른 지출 옵션">
+              <span>지출 옵션</span>
+              <div class="plan-option-grid">
+                <button class="plan-option active" type="button" data-quick-plan-mode="single">
+                  <strong>한 번</strong>
+                </button>
+                <button class="plan-option" type="button" data-quick-plan-mode="repeat">
+                  <strong>매달 반복</strong>
+                </button>
+                <button class="plan-option" type="button" data-quick-plan-mode="installment">
+                  <strong>할부</strong>
+                </button>
+              </div>
+              <label class="plan-months-row" id="quick-installment-months-row" hidden>
+                <span id="quick-plan-months-label">개월</span>
+                <input id="quick-installment-months" name="quickInstallmentMonths" type="text" inputmode="numeric" pattern="[0-9]*" value="3" data-month-input />
+              </label>
+            </section>
+            <div class="quick-entry-actions">
+              <button class="primary-button compact" type="button" id="quick-next">
+                다음
+              </button>
+            </div>
+          </div>
+          <div class="quick-step" data-quick-step-panel="category" hidden>
+            <label>
+              <span>카테고리</span>
+              <input id="quick-category" name="category" type="hidden" required />
+              <div class="category-picker quick-category-picker" id="quick-category-picker" role="radiogroup" aria-label="빠른 카테고리 선택"></div>
+            </label>
+            <div class="quick-category-create">
+              <input id="quick-category-name" type="text" placeholder="새 카테고리" />
+              <button class="secondary-button compact" type="button" id="quick-add-category">
+                만들기
+              </button>
+            </div>
+            <div class="quick-entry-actions two">
+              <button class="secondary-button compact" type="button" id="quick-back">
+                이전
+              </button>
+              <button class="primary-button compact" type="submit">
+                기록하기
+              </button>
+            </div>
+          </div>
+          <p class="quick-entry-note">설정에서 해제 가능합니다</p>
+        </form>
+      </section>
+    </div>
+    <div class="record-modal" id="record-modal" hidden>
+      <div class="record-modal-backdrop" data-close-record></div>
+      <section class="record-modal-panel" role="dialog" aria-modal="true" aria-labelledby="record-modal-title">
+        <button class="icon-button soft" type="button" id="close-record-detail" aria-label="상세 닫기">
+          <i data-lucide="x"></i>
+        </button>
+        <div id="record-modal-body"></div>
+      </section>
+    </div>
 
     <script src="./assets/lucide.min.js"></script>
     <script src="./app.js"></script>

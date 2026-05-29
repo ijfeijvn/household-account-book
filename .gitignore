@@ -2,3 +2,12 @@
 node_modules/
 *.log
 *.idsig
+.codex-apk-*.pem
+.codex-apk-tools*/
+.codex-apk-build/
+.codex-apktool-build/
+.codex-android-build/
+.codex-android-tools/
+dist/*-unsigned.apk
+dist/desire-accountbook-v0.5.0-install.apk
+dist/desire-accountbook-v0.5.0-install.zip
